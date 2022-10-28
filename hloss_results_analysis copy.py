@@ -326,4 +326,10 @@ for round_func in [
 # check bias in the limit of many data points per question
 print_approx(title="2l: ", player_model_idx=0, q_idx=all_q_idxs, fake_rows=10000)
 print_approx(title="12l: ", player_model_idx=1, q_idx=all_q_idxs, fake_rows=1000)
-print_approx(title="24l: ", player_model_idx=2, q_id
+print_approx(title="24l: ", player_model_idx=2, q_idx=all_q_idxs, fake_rows=1000)
+print_approx(title="2l rounded: ", round_function=round_basic, player_model_idx=0, q_idx=all_q_idxs, fake_rows=1000)
+print_approx(title="12l rounded:: ", round_function=round_basic, player_model_idx=1, q_idx=all_q_idxs, fake_rows=1000)
+print_approx(title="24l rounded:: ", round_function=round_basic, player_model_idx=2, q_idx=all_q_idxs, fake_rows=1000)
+#%%
+print_approx(title="2l: ", player_model_idx=0, q_idx=all_q_idxs, fake_rows=400)
+# %%
