@@ -7,7 +7,7 @@ import json
 data = json.load(open("results_raw/res_loss_anonym.json", "r"))
 #%%
 def load_doc(idx):
-    d = json.load(open(f"multi_comparisons/doc{idx}.json","r"))
+    d = json.load(open(f"multi_comparisons/doc{idx}.json", "r"))
     return d
 
 
@@ -139,7 +139,7 @@ def fake_answers(d, size):
 #%%
 def get_approx(player_model_idx=None, round_function=no_round, fake_rows=None, q_idx=questions_idxs_1, title=""):
     """Get an approximation of the log loss
-    
+
     player_model_idx means human
     otherwise it's the id of the model (see below for which is which)"""
     model_ref_idx = 1
@@ -195,6 +195,7 @@ def print_approx(title="", **approx_args):
     std = a.std() / np.sqrt(len(approx_args["q_idx"]))
     print(f"{title}{a.mean():.2f} L_std {std:.2f} P_std {total_uncertainty:.2f}")
 
+
 # Print results for the first set
 print_approx(title="human: ", q_idx=questions_idxs_1)
 print_approx(title="2l: ", player_model_idx=0, q_idx=questions_idxs_1)
@@ -232,9 +233,12 @@ print_approx(title="24l: ", player_model_idx=2, q_idx=all_q_idxs)
 print_approx(title="2l rounded: ", round_function=round_basic, player_model_idx=0, q_idx=all_q_idxs)
 print_approx(title="12l rounded:: ", round_function=round_basic, player_model_idx=1, q_idx=all_q_idxs)
 print_approx(title="24l rounded:: ", round_function=round_basic, player_model_idx=2, q_idx=all_q_idxs)
-# %% plot results
+# %%
+# Plot results
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+
+use_stat_uncertainty = True  # CHANGE THIS to False to obtain the graph with the other uncertainty estimator
 
 # sum_bits, all_sum_bits = get_approx(q_idx=all_q_idxs)
 def plot_error_bar(height, value, two_sigma_err, title, color, true_value):
@@ -267,7 +271,7 @@ def plot_approx(height=0, title="", color="red", true_value=None, **approx_args)
     std = a.std() / np.sqrt(len(q_idx))
     print(f"{title}{a.mean():.2f} L_std {std:.2f} P_std {total_uncertainty:.2f}")
 
-    error_used = std
+    error_used = std if use_stat_uncertainty else total_uncertainty
     perplexity_estimate = np.exp(a.mean() + true_losses[1])
     perplexity_lower_estimate = np.exp(a.mean() + true_losses[1] - 2 * error_used)
     perplexity_higher_estimate = np.exp(a.mean() + true_losses[1] - 2 * error_used)
@@ -332,4 +336,48 @@ print_approx(title="12l rounded:: ", round_function=round_basic, player_model_id
 print_approx(title="24l rounded:: ", round_function=round_basic, player_model_idx=2, q_idx=all_q_idxs, fake_rows=1000)
 #%%
 print_approx(title="2l: ", player_model_idx=0, q_idx=all_q_idxs, fake_rows=400)
+# %%
+# Bias on the questions asked to the participants
+def plot_theoritical(q_idx, attempts = 3, n_inners=[1, 4, 10, 40, 100, 400]):
+    def get_loss_mean(model_idx):
+        a = np.array([-docs[i]["correct_logprobs"][model_idx] for i in q_idx])
+        return a.mean()
+
+    results = []
+    true_delta_2 = get_loss_mean(2) - get_loss_mean(1)
+    true_delta_0 = get_loss_mean(0) - get_loss_mean(1)
+
+    for n_inner in n_inners:
+        print(n_inner)
+        for _ in range(attempts):
+            effective_delta_2 = np.array(get_approx(player_model_idx=2, q_idx=q_idx, fake_rows=n_inner)[0]).mean()
+            effective_delta_0 = np.array(get_approx(player_model_idx=0, q_idx=q_idx, fake_rows=n_inner)[0]).mean()
+            results.append((n_inner, effective_delta_2, effective_delta_0))
+
+    delta_0 = [(n, d0) for n, d2, d0 in results]
+    delta_2 = [(n, d2) for n, d2, d0 in results]
+
+    plt.scatter(
+        [x for (x, y) in delta_0], [y - true_delta_0 for (x, y) in delta_0], label="error in 2-layers loss estimation"
+    )
+    plt.scatter(
+        [x for (x, y) in delta_2], [y - true_delta_2 for (x, y) in delta_2], label="error in 24-layers loss estimation"
+    )
+
+    plt.title(
+        f"""Error in the loss estimation for different language model
+    using the 12-layer model as generator
+    N={len(q_idx)}"""
+    )
+    plt.axhline(0, color="black", label="no error line")
+    plt.legend()
+    plt.xscale("log")
+    plt.xlabel("Samples for a given prompt (n)")
+    plt.ylabel(f"Estimated loss - true loss (in bits) (on {attempts})")
+    plt.show()
+
+plot_theoritical(all_q_idxs)
+# %%
+# On 1000 questions
+plot_theoritical(more_questions_idxs_1)
 # %%
